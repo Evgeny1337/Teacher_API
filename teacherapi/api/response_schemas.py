@@ -1,6 +1,9 @@
-from ninja import Schema, ModelSchema
+from typing import List
 
-from api.models import GeneratedLesson, ReferenceLesson
+from ninja import Schema, ModelSchema
+from pydantic import Field
+
+from api.models import GeneratedLesson, ReferenceLesson, TeacherRemark
 
 
 class UnprocessableEntitySchema(Schema):
@@ -17,3 +20,13 @@ class ReferenceLessonResponse(ModelSchema):
     class Meta:
         model = ReferenceLesson
         fields = ['id', 'title', 'level']
+
+
+class TeacherRemarkResponse(ModelSchema):
+    class Meta:
+        model = TeacherRemark
+        fields = ['id', 'remark']
+
+
+class RemarksResponse(Schema):
+    remarks: List[TeacherRemarkResponse] = Field(default_factory=list, description="Список исправлений")

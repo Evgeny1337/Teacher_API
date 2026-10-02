@@ -1,6 +1,7 @@
 from http import HTTPStatus
 
 from django.http.request import HttpRequest
+from django.shortcuts import get_object_or_404
 from ninja import Form, Router, File, Status
 from ninja.files import UploadedFile
 from pydantic import PositiveInt
@@ -12,9 +13,10 @@ from api.models import ReferenceLesson, Attachment
 
 references_router = Router(auth=AuthBearer())
 
+
 @references_router.post("/", response={
     HTTPStatus.UNPROCESSABLE_ENTITY: UnprocessableEntitySchema,
-    HTTPStatus.CREATED: ReferenceLessonResponse
+    HTTPStatus.CREATED: ReferenceLessonResponse,
 })
 def create_references(
     request: HttpRequest,
@@ -38,11 +40,11 @@ def create_references(
     return Status(HTTPStatus.CREATED, references)
 
 
-@references_router.get("/{int:id}", response={
+@references_router.get("/{int:id_reference}/", response={
     HTTPStatus.OK: ReferenceLessonResponse,
     HTTPStatus.NOT_FOUND: UnprocessableEntitySchema,
 })
-def get_reference(request: HttpRequest, id: PositiveInt):
-    reference = ReferenceLesson.objects.get(pk=id)
+def get_reference(request: HttpRequest, id_reference: PositiveInt):
+    reference = get_object_or_404(ReferenceLesson, pk=id_reference)
     return Status(HTTPStatus.OK, reference)
 

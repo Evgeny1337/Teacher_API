@@ -17,12 +17,12 @@ class StatusLessonChoices(models.TextChoices):
 class GeneratedLesson(models.Model):
     topic = models.CharField(max_length=255, blank=True, null=True)
     level = models.CharField(max_length=255, default="B1")
-    age_bucket = models.CharField(max_length=10, choices=AgeBucketChoices.choices,null=True, default=None)
+    age_bucket = models.CharField(max_length=10, choices=AgeBucketChoices, null=True, default=None)
     duration_minutes = models.PositiveIntegerField(default=80)
     teacher_context = models.TextField(blank=True, null=True)
     extra_instructions = models.TextField(blank=True, null=True)
     textbook_hint = models.TextField(blank=True, null=True)
-    status = models.CharField(max_length=10, choices=StatusLessonChoices.choices, default=StatusLessonChoices.GENERATED)
+    status = models.CharField(max_length=10, choices=StatusLessonChoices, default=StatusLessonChoices.DRAFT)
     final = models.JSONField(blank=True, null=True)
 
 
@@ -30,7 +30,7 @@ class ReferenceLesson(models.Model):
     title = models.CharField(max_length=255, blank=True, null=True)
     structured_content = models.JSONField(blank=True, null=True)
     level = models.CharField(max_length=255, default="B1")
-    age_bucket = models.CharField(max_length=10,choices=AgeBucketChoices.choices,null=True, default=None)
+    age_bucket = models.CharField(max_length=10, choices=AgeBucketChoices, null=True, default=None)
     teacher_context = models.TextField(blank=True, null=True)
 
 class LessonIteration(models.Model):
@@ -48,7 +48,7 @@ class Attachment(models.Model):
         MATERIAL = "material", "Material"
         FINAL = "final", "Final"
 
-    type = models.CharField(choices=AttachmentTypes.choices, default=AttachmentTypes.REFERENCE, max_length=10)
+    type = models.CharField(choices=AttachmentTypes, default=AttachmentTypes.REFERENCE, max_length=10)
     file = models.FileField(upload_to="attachments/", max_length=255, blank=True, null=True)
     generated_lesson = models.ForeignKey(GeneratedLesson, on_delete=models.CASCADE, null=True, default=None)
     reference_lesson = models.ForeignKey(ReferenceLesson, on_delete=models.CASCADE, null=True, default=None)
