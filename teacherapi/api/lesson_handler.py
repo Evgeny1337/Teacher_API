@@ -2,8 +2,10 @@ from http import HTTPStatus
 
 from django.db import transaction
 from django.http.request import HttpRequest
+from django.shortcuts import get_object_or_404
 from ninja import Form, Router, File, Status
 from ninja.files import UploadedFile
+from pydantic import PositiveInt
 
 from api.models import GeneratedLesson, Attachment
 from api.response_schemas import UnprocessableEntitySchema, GeneratedLessonResponse
@@ -39,4 +41,13 @@ def create_lesson(
                 type="material",
             )
     return Status(HTTPStatus.CREATED, generated_lesson)
+
+
+@lesson_router.get(path="/{int:id}", response={
+    HTTPStatus.OK: GeneratedLessonResponse,
+    HTTPStatus.NOT_FOUND: UnprocessableEntitySchema
+})
+def get_lesson(request: HttpRequest, id: PositiveInt):
+    lesson = get_object_or_404(GeneratedLesson, pk=id)
+    return Status(HTTPStatus.OK, lesson)
 

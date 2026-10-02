@@ -3,6 +3,7 @@ from http import HTTPStatus
 from django.http.request import HttpRequest
 from ninja import Form, Router, File, Status
 from ninja.files import UploadedFile
+from pydantic import PositiveInt
 
 from api.response_schemas import UnprocessableEntitySchema, ReferenceLessonResponse
 from api.auth import AuthBearer
@@ -35,4 +36,13 @@ def create_references(
                 type="reference",
             )
     return Status(HTTPStatus.CREATED, references)
+
+
+@references_router.get("/{int:id}", response={
+    HTTPStatus.OK: ReferenceLessonResponse,
+    HTTPStatus.NOT_FOUND: UnprocessableEntitySchema,
+})
+def get_reference(request: HttpRequest, id: PositiveInt):
+    reference = ReferenceLesson.objects.get(pk=id)
+    return Status(HTTPStatus.OK, reference)
 
