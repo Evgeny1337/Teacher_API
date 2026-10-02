@@ -41,8 +41,6 @@ class ReferenceLessonRequest(Schema):
 
 
 class ReferenceLessonCreateForm(Schema):
-    """Плоские поля для multipart/form-data (без вложенного LessonContent)."""
-
     title: str | None = Field(default=None, description="Заголовок")
     level: str = Field(default="B1", description="Уровень английского")
     age_bucket: AgeBucketType | None = Field(default=None, description="Возраст учащихся")
@@ -55,3 +53,11 @@ class RemarkCreate(Schema):
 class ApproveWithFinal(Schema):
     final_content: LessonContent | None = Field(description="Согласованный контент", default=None)
     use_uploaded_file: bool = Field(description="Финальный вариант в файле", default=False)
+
+
+class ApproveLessonForm(Schema):
+    use_uploaded_file: bool = Field(default=False, description="Финальный вариант в файле")
+    final_content: str | None = Field(
+        default=None,
+        description="JSON LessonContent (строка), если use_uploaded_file=false",
+    )

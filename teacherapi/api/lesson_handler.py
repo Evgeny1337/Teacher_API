@@ -1,15 +1,16 @@
 from http import HTTPStatus
+import json
 
 from django.db import transaction
 from django.http.request import HttpRequest
 from django.shortcuts import get_object_or_404
 from ninja import Form, Router, File, Status
 from ninja.files import UploadedFile
-from pydantic import PositiveInt
+from pydantic import PositiveInt, ValidationError
 
 from api.models import GeneratedLesson, Attachment, LessonIteration, TeacherRemark
 from api.response_schemas import UnprocessableEntitySchema, GeneratedLessonResponse, RemarksResponse
-from api.schemas import LessonGenerateRequest, RemarkCreate, ApproveWithFinal
+from api.schemas import LessonGenerateRequest, RemarkCreate, ApproveLessonForm, LessonContent
 from api.auth import AuthBearer
 
 lesson_router = Router(auth=AuthBearer())
@@ -57,15 +58,22 @@ def get_lesson(request: HttpRequest, id_lesson: PositiveInt):
     HTTPStatus.OK: GeneratedLessonResponse,
     HTTPStatus.NOT_FOUND: UnprocessableEntitySchema,
     HTTPStatus.UNPROCESSABLE_ENTITY: UnprocessableEntitySchema,
+    HTTPStatus.CONFLICT: UnprocessableEntitySchema,
 })
 @transaction.atomic
 def approve_lesson(
     request: HttpRequest,
     id_lesson: PositiveInt,
-    payload: ApproveWithFinal,
+    payload: Form[ApproveLessonForm],
     file: UploadedFile | None = File(None),
 ):
     lesson = get_object_or_404(GeneratedLesson, pk=id_lesson)
+
+    if lesson.status == "approved":
+        return Status(
+            HTTPStatus.CONFLICT,
+            {"detail": "lesson is already approved"},
+        )
 
     if payload.use_uploaded_file:
         if not file:
@@ -79,12 +87,19 @@ def approve_lesson(
             type="final",
         )
     else:
-        if payload.final_content is None:
+        if not payload.final_content:
             return Status(
                 HTTPStatus.UNPROCESSABLE_ENTITY,
                 {"detail": "final_content is required when use_uploaded_file=false"},
             )
-        lesson.final = payload.final_content.model_dump()
+        try:
+            content = LessonContent.model_validate_json(payload.final_content)
+        except (ValidationError, json.JSONDecodeError) as exc:
+            return Status(
+                HTTPStatus.UNPROCESSABLE_ENTITY,
+                {"detail": f"invalid final_content JSON: {exc}"},
+            )
+        lesson.final = content.model_dump()
 
     lesson.status = "approved"
     lesson.save()
