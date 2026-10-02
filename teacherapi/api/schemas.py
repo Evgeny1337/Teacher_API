@@ -32,6 +32,22 @@ class LessonGenerateRequest(Schema):
     textbook_hint: str | None = Field(default=None, description="Описание книги")
 
 
+class ReferenceLessonRequest(Schema):
+    title: str | None = Field(description="Заголовок", default=None)
+    structured_content: LessonContent | None = Field(description="Содержание", default=None)
+    level: str = Field(default="B1", description="Уровень английского")
+    age_bucket: AgeBucketType | None = Field(default=None, description="Возраст учащихся")
+    teacher_context: str | None = Field(default=None, description="Пометки учителя")
+
+
+class ReferenceLessonCreateForm(Schema):
+    """Плоские поля для multipart/form-data (без вложенного LessonContent)."""
+
+    title: str | None = Field(default=None, description="Заголовок")
+    level: str = Field(default="B1", description="Уровень английского")
+    age_bucket: AgeBucketType | None = Field(default=None, description="Возраст учащихся")
+    teacher_context: str | None = Field(default=None, description="Пометки учителя")
+
 class RemarkCreate(Schema):
     remarks: list[str] = Field(description="Правки")
 

@@ -28,6 +28,7 @@ load_dotenv(override=True, dotenv_path=os.path.join(BASE_DIR, ENV_PATH))
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-=k*&x_@jv4^k!dcd-+hj+ctz2z+r7o7=%73s4u4r2%86nz*0q8'
+BOT_SHARED_SECRET = os.environ.get("BOT_SHARED_SECRET", "default-unsafe-secret")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -55,6 +56,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "ninja.compatibility.files.fix_request_files_middleware"
 ]
 
 ROOT_URLCONF = 'teacherapi.urls'
