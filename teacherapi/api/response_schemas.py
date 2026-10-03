@@ -11,9 +11,10 @@ class UnprocessableEntitySchema(Schema):
 
 
 class GeneratedLessonResponse(ModelSchema):
+    task_id: str | None = None
     class Meta:
         model = GeneratedLesson
-        fields = ['id', 'topic', 'level']
+        fields = ['id', 'topic', 'level', 'status', 'final']
 
 
 class ReferenceLessonResponse(ModelSchema):

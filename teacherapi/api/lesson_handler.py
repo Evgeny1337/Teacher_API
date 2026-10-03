@@ -11,6 +11,7 @@ from pydantic import PositiveInt, ValidationError
 from api.models import GeneratedLesson, Attachment, LessonIteration, TeacherRemark
 from api.response_schemas import UnprocessableEntitySchema, GeneratedLessonResponse, RemarksResponse
 from api.schemas import LessonGenerateRequest, RemarkCreate, ApproveLessonForm, LessonContent
+from api.tasks import generate_lesson_stub
 from api.auth import AuthBearer
 
 lesson_router = Router(auth=AuthBearer())
@@ -42,7 +43,15 @@ def create_lesson(
                 file=file,
                 type="material",
             )
-    return Status(HTTPStatus.CREATED, generated_lesson)
+    task = generate_lesson_stub.delay(generated_lesson.id)
+    return Status(HTTPStatus.CREATED, {
+        "id": generated_lesson.id,
+        "topic": generated_lesson.topic,
+        "level": generated_lesson.level,
+        "status": generated_lesson.status,
+        "final": generated_lesson.final,
+        "task_id": task.id,
+    })
 
 
 @lesson_router.get(path="/{int:id_lesson}/", response={

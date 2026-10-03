@@ -30,6 +30,13 @@ load_dotenv(override=True, dotenv_path=os.path.join(BASE_DIR, ENV_PATH))
 SECRET_KEY = 'django-insecure-=k*&x_@jv4^k!dcd-+hj+ctz2z+r7o7=%73s4u4r2%86nz*0q8'
 BOT_SHARED_SECRET = os.environ.get("BOT_SHARED_SECRET", "default-unsafe-secret")
 
+REDIS_PASSWORD = os.environ.get("REDIS_PASSWORD", "default-unsafe-secret")
+CELERY_BROKER_URL = f'redis://:{REDIS_PASSWORD}@localhost:6380/0'
+CELERY_RESULT_BACKEND = f'redis://:{REDIS_PASSWORD}@localhost:6380/1'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 

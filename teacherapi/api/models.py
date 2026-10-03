@@ -38,7 +38,7 @@ class LessonIteration(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     draft = models.JSONField(blank=True, null=True)
-    generated_lesson = models.ForeignKey(GeneratedLesson, on_delete=models.CASCADE, null=True, default=None)
+    generated_lesson = models.ForeignKey(GeneratedLesson, on_delete=models.CASCADE, null=True, default=None, related_name="iterations")
     iteration_number = models.PositiveIntegerField(default=1)
 
 
