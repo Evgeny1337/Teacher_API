@@ -1,5 +1,6 @@
 from http import HTTPStatus
 import json
+import uuid
 
 from django.db import transaction
 from django.http.request import HttpRequest
@@ -43,14 +44,18 @@ def create_lesson(
                 file=file,
                 type="material",
             )
-    task = generate_lesson_stub.delay(generated_lesson.id)
+    task_id = str(uuid.uuid4())
+    lesson_id = generated_lesson.id
+    transaction.on_commit(
+        lambda: generate_lesson_stub.apply_async(args=[lesson_id], task_id=task_id)
+    )
     return Status(HTTPStatus.CREATED, {
         "id": generated_lesson.id,
         "topic": generated_lesson.topic,
         "level": generated_lesson.level,
         "status": generated_lesson.status,
         "final": generated_lesson.final,
-        "task_id": task.id,
+        "task_id": task_id,
     })
 
 
