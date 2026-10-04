@@ -12,7 +12,7 @@ from pydantic import PositiveInt, ValidationError
 from api.models import GeneratedLesson, Attachment, LessonIteration, TeacherRemark
 from api.response_schemas import UnprocessableEntitySchema, GeneratedLessonResponse, RemarksResponse
 from api.schemas import LessonGenerateRequest, RemarkCreate, ApproveLessonForm, LessonContent
-from api.tasks import generate_lesson_stub
+from api.tasks import generate_lesson_draft
 from api.auth import AuthBearer
 
 lesson_router = Router(auth=AuthBearer())
@@ -45,9 +45,11 @@ def create_lesson(
                 type="material",
             )
     task_id = str(uuid.uuid4())
+    generated_lesson.task_id = task_id
+    generated_lesson.save(update_fields=["task_id"])
     lesson_id = generated_lesson.id
     transaction.on_commit(
-        lambda: generate_lesson_stub.apply_async(args=[lesson_id], task_id=task_id)
+        lambda: generate_lesson_draft.apply_async(args=[lesson_id], task_id=task_id)
     )
     return Status(HTTPStatus.CREATED, {
         "id": generated_lesson.id,
@@ -55,7 +57,9 @@ def create_lesson(
         "level": generated_lesson.level,
         "status": generated_lesson.status,
         "final": generated_lesson.final,
-        "task_id": task_id,
+        "task_id": generated_lesson.task_id,
+        "draft": None,
+        "iteration_number": None,
     })
 
 
@@ -64,8 +68,22 @@ def create_lesson(
     HTTPStatus.NOT_FOUND: UnprocessableEntitySchema,
 })
 def get_lesson(request: HttpRequest, id_lesson: PositiveInt):
-    lesson = get_object_or_404(GeneratedLesson, pk=id_lesson)
-    return Status(HTTPStatus.OK, lesson)
+    lesson = get_object_or_404(
+        GeneratedLesson.objects.prefetch_related("iterations"),
+        pk=id_lesson,
+    )
+    iteration = lesson.iterations.order_by("-iteration_number").first()
+    return Status(HTTPStatus.OK, {
+        "id": lesson.id,
+        "topic": lesson.topic,
+        "level": lesson.level,
+        "status": lesson.status,
+        "final": lesson.final,
+        "task_id": lesson.task_id,
+        "draft": iteration.draft if iteration else None,
+        "iteration_number": iteration.iteration_number if iteration else None,
+    })
+
 
 
 @lesson_router.post(path="/{int:id_lesson}/approve/", response={

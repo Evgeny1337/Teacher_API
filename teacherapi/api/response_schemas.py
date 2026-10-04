@@ -4,6 +4,7 @@ from ninja import Schema, ModelSchema
 from pydantic import Field
 
 from api.models import GeneratedLesson, ReferenceLesson, TeacherRemark
+from api.schemas import LessonContent
 
 
 class UnprocessableEntitySchema(Schema):
@@ -11,11 +12,12 @@ class UnprocessableEntitySchema(Schema):
 
 
 class GeneratedLessonResponse(ModelSchema):
-    task_id: str | None = None
+    draft: LessonContent | None = None
+    iteration_number: int | None = None
 
     class Meta:
         model = GeneratedLesson
-        fields = ['id', 'topic', 'level', 'status', 'final']
+        fields = ['id', 'topic', 'level', 'status', 'final', 'task_id']
 
 
 class ReferenceLessonResponse(ModelSchema):
