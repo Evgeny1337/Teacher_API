@@ -1,5 +1,5 @@
 from django.db import models
-
+from pgvector.django import VectorField
 
 class AgeBucketChoices(models.TextChoices):
     KIDS = "kids", "Kids"
@@ -58,4 +58,13 @@ class Attachment(models.Model):
 class TeacherRemark(models.Model):
     remark = models.TextField()
     lesson_iteration = models.ForeignKey(LessonIteration, on_delete=models.CASCADE)
+
+
+class LessonChunk(models.Model):
+    content = models.TextField(blank=True, null=True)
+    embedding = VectorField(dimensions=1024)
+    reference = models.ForeignKey(ReferenceLesson, on_delete=models.CASCADE, related_name="chunks")
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
 

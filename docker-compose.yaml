@@ -1,6 +1,6 @@
 services:
   teacher_db:
-    image: postgres:15.0
+    image: pgvector/pgvector:pg17
     ports:
       - "8089:5432"
     environment:
@@ -20,8 +20,20 @@ services:
     volumes:
       - redis_data:/data
       - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+  tei:
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.7
+    platform: linux/amd64
+    ports:
+      - "8084:80"
+    volumes:
+      - tei:/data
+    environment:
+      - MODEL_ID=BAAI/bge-m3
+      - AUTO_TRUNCATE=false
+    command: --model-id BAAI/bge-m3
 
 volumes:
   teacher_db:
   redis_data:
+  tei:
 
