@@ -16,11 +16,9 @@ def get_pdf(path: Path) -> str:
 
 
 def _table_row_blocks(table: Table) -> list[str]:
-    """Flatten table rows as 'cell | cell' lines for chunking."""
     blocks: list[str] = []
     for row in table.rows:
         cells = [" ".join(cell.text.split()) for cell in row.cells]
-        # Merged cells repeat the same text in python-docx — drop exact dupes in-row.
         deduped: list[str] = []
         for cell in cells:
             if cell and (not deduped or cell != deduped[-1]):

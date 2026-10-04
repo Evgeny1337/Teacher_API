@@ -19,13 +19,23 @@ def generate_lesson_draft(lesson_id: int) -> dict:
     )
 
     extracted_materials = []
+    skipped_materials = []
     for attachment in attachments:
         if not attachment.file:
             continue
-        text = extract_text(attachment.file.path)
+        filename = attachment.file.name.split("/")[-1]
+        try:
+            text = extract_text(attachment.file.path)
+        except ValueError as exc:
+            skipped_materials.append({
+                "attachment_id": attachment.id,
+                "filename": filename,
+                "reason": str(exc),
+            })
+            continue
         extracted_materials.append({
             "attachment_id": attachment.id,
-            "filename": attachment.file.name.split("/")[-1],
+            "filename": filename,
             "text": text,
         })
 
@@ -59,6 +69,7 @@ def generate_lesson_draft(lesson_id: int) -> dict:
         generated_lesson=lesson,
         body={
             "extracted_materials": extracted_materials,
+            "skipped_materials": skipped_materials,
             "style_chunks": style_chunks,
         },
         draft=draft,
@@ -71,6 +82,7 @@ def generate_lesson_draft(lesson_id: int) -> dict:
         "iteration_id": iteration.id,
         "iteration_number": iteration.iteration_number,
         "attachments": len(extracted_materials),
+        "skipped_attachments": len(skipped_materials),
         "style_chunks_used": len(style_chunks),
         "draft_title": (draft or {}).get("title"),
         "error": error,
