@@ -1,7 +1,7 @@
 from celery import shared_task
 
 from api.deepseek import build_lesson_draft
-from api.embeddings import embed_texts
+from api.embeddings import embed_texts, find_style_chunks
 from api.extraction import extract_text, get_chunks
 from api.models import Attachment, GeneratedLesson, LessonChunk, LessonIteration, ReferenceLesson
 
@@ -29,6 +29,14 @@ def generate_lesson_draft(lesson_id: int) -> dict:
             "text": text,
         })
 
+    style_query = (
+        f"{lesson.topic or ''} "
+        f"{lesson.level or ''} "
+        f"{lesson.teacher_context or ''} "
+        f"{lesson.extra_instructions or ''}"
+    ).strip()
+    style_chunks = find_style_chunks(style_query)
+
     draft = None
     error = None
     try:
@@ -48,7 +56,10 @@ def generate_lesson_draft(lesson_id: int) -> dict:
 
     iteration = LessonIteration.objects.create(
         generated_lesson=lesson,
-        body={"extracted_materials": extracted_materials},
+        body={
+            "extracted_materials": extracted_materials,
+            "style_chunks": style_chunks,
+        },
         draft=draft,
         iteration_number=lesson.iterations.count() + 1,
     )
@@ -59,6 +70,7 @@ def generate_lesson_draft(lesson_id: int) -> dict:
         "iteration_id": iteration.id,
         "iteration_number": iteration.iteration_number,
         "attachments": len(extracted_materials),
+        "style_chunks_used": len(style_chunks),
         "draft_title": (draft or {}).get("title"),
         "error": error,
     }
