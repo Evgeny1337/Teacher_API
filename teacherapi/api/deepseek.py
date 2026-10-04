@@ -18,7 +18,10 @@ Return ONLY valid JSON (no markdown fences) with this shape:
     {"section_type": "string", "title": "string", "content": "markdown string"}
   ]
 }
-Use the materials as the main content source. Match level and duration.
+Use Topic, Level, Duration, Teacher context, Extra instructions, Textbook hint, and Materials as the content source (what the lesson is about).
+If Style examples are provided, imitate their lesson structure, staging, interaction patterns, and instruction tone.
+Do not copy the topic or factual content from Style examples when they differ from the current request.
+Match level and duration.
 """.strip()
 
 
@@ -39,6 +42,7 @@ def _build_user_prompt(
     extra_instructions: str | None,
     textbook_hint: str | None,
     materials: list[dict[str, Any]],
+    style_chunks: list[str] | None = None,
 ) -> str:
     parts = [
         f"Topic: {topic}",
@@ -53,6 +57,13 @@ def _build_user_prompt(
         text = (material.get("text") or "")[:12000]
         parts.append(f"--- {material.get('filename', 'file')} ---")
         parts.append(text)
+
+    if style_chunks:
+        parts.append("Style examples from the teacher's reference lessons:")
+        for index, chunk in enumerate(style_chunks, start=1):
+            parts.append(f"--- example {index} ---")
+            parts.append(chunk)
+
     return "\n".join(parts)
 
 
@@ -73,6 +84,7 @@ def build_lesson_draft(
     extra_instructions: str | None,
     textbook_hint: str | None,
     materials: list[dict[str, Any]],
+    style_chunks: list[str] | None = None,
 ) -> dict:
     messages = cast(
         list[ChatCompletionMessageParam],
@@ -88,6 +100,7 @@ def build_lesson_draft(
                     extra_instructions=extra_instructions,
                     textbook_hint=textbook_hint,
                     materials=materials,
+                    style_chunks=style_chunks,
                 ),
             },
         ],
@@ -101,3 +114,4 @@ def build_lesson_draft(
     raw = response.choices[0].message.content or ""
     data = _parse_json(raw)
     return LessonContent.model_validate(data).model_dump()
+

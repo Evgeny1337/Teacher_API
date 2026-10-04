@@ -48,6 +48,7 @@ def generate_lesson_draft(lesson_id: int) -> dict:
             extra_instructions=lesson.extra_instructions,
             textbook_hint=lesson.textbook_hint,
             materials=extracted_materials,
+            style_chunks=style_chunks,
         )
     except Exception as exc:
         error = str(exc)
