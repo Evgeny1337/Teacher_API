@@ -3,17 +3,19 @@ import json
 import uuid
 
 from django.db import transaction
+from django.http import FileResponse
 from django.http.request import HttpRequest
 from django.shortcuts import get_object_or_404
 from ninja import Form, Router, File, Status
 from ninja.files import UploadedFile
 from pydantic import PositiveInt, ValidationError
 
+from api.auth import AuthBearer
+from api.docx_export import render_lesson_docx
 from api.models import GeneratedLesson, Attachment, LessonIteration, TeacherRemark
 from api.response_schemas import UnprocessableEntitySchema, GeneratedLessonResponse, RemarksResponse
 from api.schemas import LessonGenerateRequest, RemarkCreate, ApproveLessonForm, LessonContent
 from api.tasks import generate_lesson_draft
-from api.auth import AuthBearer
 
 lesson_router = Router(auth=AuthBearer())
 
@@ -85,6 +87,41 @@ def get_lesson(request: HttpRequest, id_lesson: PositiveInt):
     })
 
 
+@lesson_router.get(
+    path="/{int:id_lesson}/docx/",
+    response={
+        HTTPStatus.NOT_FOUND: UnprocessableEntitySchema,
+        HTTPStatus.CONFLICT: UnprocessableEntitySchema,
+    },
+)
+def download_lesson_docx(request: HttpRequest, id_lesson: PositiveInt):
+    lesson = get_object_or_404(
+        GeneratedLesson.objects.prefetch_related("iterations"),
+        pk=id_lesson,
+    )
+    iteration = (
+        lesson.iterations
+        .exclude(draft__isnull=True)
+        .order_by("-iteration_number")
+        .first()
+    )
+    if iteration is None or not iteration.draft:
+        return Status(
+            HTTPStatus.CONFLICT,
+            {"detail": "Нет файла"},
+        )
+
+    buffer = render_lesson_docx(iteration.draft)
+    filename = f"lesson_{lesson.id}.docx"
+    return FileResponse(
+        buffer,
+        as_attachment=True,
+        filename=filename,
+        content_type=(
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        ),
+    )
+
 
 @lesson_router.post(path="/{int:id_lesson}/approve/", response={
     HTTPStatus.OK: GeneratedLessonResponse,
@@ -122,14 +159,14 @@ def approve_lesson(
         if not payload.final_content:
             return Status(
                 HTTPStatus.UNPROCESSABLE_ENTITY,
-                {"detail": "final_content is required when use_uploaded_file=false"},
+                {"detail": "final_content обязателен к заполнению при use_uploaded_file=false"},
             )
         try:
             content = LessonContent.model_validate_json(payload.final_content)
         except (ValidationError, json.JSONDecodeError) as exc:
             return Status(
                 HTTPStatus.UNPROCESSABLE_ENTITY,
-                {"detail": f"invalid final_content JSON: {exc}"},
+                {"detail": f"Ошибка json: {exc}"},
             )
         lesson.final = content.model_dump()
 
