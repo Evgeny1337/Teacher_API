@@ -2,6 +2,9 @@ from pathlib import Path
 
 import docx
 import pypdf
+from docx.oxml.ns import qn
+from docx.table import Table
+from docx.text.paragraph import Paragraph
 
 PathLike = str | Path
 
@@ -12,9 +15,34 @@ def get_pdf(path: Path) -> str:
     return "\n".join(pages)
 
 
+def _table_row_blocks(table: Table) -> list[str]:
+    """Flatten table rows as 'cell | cell' lines for chunking."""
+    blocks: list[str] = []
+    for row in table.rows:
+        cells = [" ".join(cell.text.split()) for cell in row.cells]
+        # Merged cells repeat the same text in python-docx — drop exact dupes in-row.
+        deduped: list[str] = []
+        for cell in cells:
+            if cell and (not deduped or cell != deduped[-1]):
+                deduped.append(cell)
+        if deduped:
+            blocks.append(" | ".join(deduped))
+    return blocks
+
+
 def get_docx(path: Path) -> str:
     document = docx.Document(path)
-    return "\n".join(para.text for para in document.paragraphs)
+    blocks: list[str] = []
+
+    for child in document.element.body.iterchildren():
+        if child.tag == qn("w:p"):
+            text = Paragraph(child, document).text.strip()
+            if text:
+                blocks.append(text)
+        elif child.tag == qn("w:tbl"):
+            blocks.extend(_table_row_blocks(Table(child, document)))
+
+    return "\n\n".join(blocks)
 
 
 ACTIONS = {
