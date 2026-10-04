@@ -21,6 +21,8 @@ class GeneratedLessonResponse(ModelSchema):
 
 
 class ReferenceLessonResponse(ModelSchema):
+    task_id: str | None = None
+
     class Meta:
         model = ReferenceLesson
         fields = ['id', 'title', 'level']

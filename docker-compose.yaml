@@ -21,19 +21,17 @@ services:
       - redis_data:/data
       - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
   tei:
-    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.7
-    platform: linux/amd64
+    # arm64 native on Apple Silicon (amd64+bge-m3 was OOM / exit 137)
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-arm64-latest
     ports:
       - "8084:80"
     volumes:
       - tei:/data
     environment:
-      - MODEL_ID=BAAI/bge-m3
-      - AUTO_TRUNCATE=false
-    command: --model-id BAAI/bge-m3
+      - MODEL_ID=BAAI/bge-small-en-v1.5
+    command: ["--model-id", "BAAI/bge-small-en-v1.5", "--auto-truncate"]
 
 volumes:
   teacher_db:
   redis_data:
   tei:
-

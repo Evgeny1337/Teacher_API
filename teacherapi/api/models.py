@@ -51,8 +51,8 @@ class Attachment(models.Model):
 
     type = models.CharField(choices=AttachmentTypes, default=AttachmentTypes.REFERENCE, max_length=10)
     file = models.FileField(upload_to="attachments/", max_length=255, blank=True, null=True)
-    generated_lesson = models.ForeignKey(GeneratedLesson, on_delete=models.CASCADE, null=True, default=None)
-    reference_lesson = models.ForeignKey(ReferenceLesson, on_delete=models.CASCADE, null=True, default=None)
+    generated_lesson = models.ForeignKey(GeneratedLesson, on_delete=models.CASCADE, null=True, default=None, related_name="attachments")
+    reference_lesson = models.ForeignKey(ReferenceLesson, on_delete=models.CASCADE, null=True, default=None, related_name="attachments")
 
 
 class TeacherRemark(models.Model):
@@ -62,7 +62,7 @@ class TeacherRemark(models.Model):
 
 class LessonChunk(models.Model):
     content = models.TextField(blank=True, null=True)
-    embedding = VectorField(dimensions=1024)
+    embedding = VectorField(dimensions=384)  # BAAI/bge-small-en-v1.5
     reference = models.ForeignKey(ReferenceLesson, on_delete=models.CASCADE, related_name="chunks")
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)

@@ -1,8 +1,9 @@
 from celery import shared_task
 
 from api.deepseek import build_lesson_draft
-from api.extraction import extract_text
-from api.models import Attachment, GeneratedLesson, LessonIteration
+from api.embeddings import embed_texts
+from api.extraction import extract_text, get_chunks
+from api.models import Attachment, GeneratedLesson, LessonChunk, LessonIteration, ReferenceLesson
 
 
 @shared_task(name="api.tasks.generate_lesson_draft")
@@ -60,4 +61,66 @@ def generate_lesson_draft(lesson_id: int) -> dict:
         "attachments": len(extracted_materials),
         "draft_title": (draft or {}).get("title"),
         "error": error,
+    }
+
+
+@shared_task(name="api.tasks.create_embedded_reference")
+def create_embedded_reference(reference_id: int) -> dict:
+    try:
+        reference = ReferenceLesson.objects.prefetch_related("attachments").get(pk=reference_id)
+    except ReferenceLesson.DoesNotExist:
+        return {"ok": False, "error": "reference_not_found", "reference_id": reference_id}
+
+    texts: list[str] = []
+    for attachment in reference.attachments.filter(type=Attachment.AttachmentTypes.REFERENCE):
+        if not attachment.file:
+            continue
+        texts.append(extract_text(attachment.file.path))
+
+    chunks: list[str] = []
+    for text in texts:
+        chunks.extend(get_chunks(text))
+
+    if not chunks:
+        return {
+            "ok": False,
+            "error": "no_chunks",
+            "reference_id": reference_id,
+            "chunks_created": 0,
+        }
+    try:
+        vectors = embed_texts(chunks)
+    except Exception as exc:
+        return {
+            "ok": False,
+            "error": f"tei_failed: {exc}",
+            "reference_id": reference_id,
+            "chunks_created": 0,
+        }
+
+    if len(vectors) != len(chunks):
+        return {
+            "ok": False,
+            "error": "tei_count_mismatch",
+            "reference_id": reference_id,
+            "chunks_created": 0,
+        }
+
+    LessonChunk.objects.filter(reference=reference).update(is_active=False)
+
+    new_chunks = [
+        LessonChunk(
+            content=chunk,
+            embedding=vector,
+            reference=reference,
+            is_active=True,
+        )
+        for chunk, vector in zip(chunks, vectors, strict=True)
+    ]
+    LessonChunk.objects.bulk_create(new_chunks)
+
+    return {
+        "ok": True,
+        "reference_id": reference_id,
+        "chunks_created": len(new_chunks),
     }

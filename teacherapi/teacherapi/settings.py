@@ -12,7 +12,9 @@ SECRET_KEY = 'django-insecure-=k*&x_@jv4^k!dcd-+hj+ctz2z+r7o7=%73s4u4r2%86nz*0q8
 BOT_SHARED_SECRET = os.environ.get("BOT_SHARED_SECRET", "default-unsafe-secret")
 DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
 DEEPSEEK_BASE_URL = os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
-DEEPSEEK_MODEL = os.environ.get("DEEPSEEK_MODEL", "deepseek-chat")
+DEEPSEEK_MODEL = os.environ.get("DEEPSEEK_MODEL", "deepseek-chat")\
+
+TEI_URL = os.environ.get("TEI_URL", "http://localhost:8084")
 
 REDIS_PASSWORD = os.environ.get("REDIS_PASSWORD", "default-unsafe-secret")
 CELERY_BROKER_URL = f'redis://:{REDIS_PASSWORD}@localhost:6380/0'
@@ -20,6 +22,7 @@ CELERY_RESULT_BACKEND = f'redis://:{REDIS_PASSWORD}@localhost:6380/1'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
+
 
 DEBUG = True
 
