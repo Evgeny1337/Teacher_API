@@ -149,3 +149,69 @@ def create_embedded_reference(reference_id: int) -> dict:
         "reference_id": reference_id,
         "chunks_created": len(new_chunks),
     }
+
+
+@shared_task(name="api.tasks.create_embedded_generated")
+def create_embedded_generated(generated_id:int) -> dict:
+    try:
+        generated = GeneratedLesson.objects.prefetch_related("attachments").get(pk=generated_id)
+    except GeneratedLesson.DoesNotExist:
+        return {"ok": False, "error": "generated_not_found", "generated_id": generated_id}
+
+    texts: list[str] = []
+    for attachment in generated.attachments.filter(type=Attachment.AttachmentTypes.FINAL):
+        if not attachment.file:
+            continue
+        texts.append(extract_text(attachment.file.path))
+
+    chunks: list[str] = []
+    for text in texts:
+        chunks.extend(get_chunks(text))
+
+
+    if not chunks:
+        return {
+            "ok": False,
+            "error": "no_chunks",
+            "generated_id": generated_id,
+            "chunks_created": 0,
+        }
+    try:
+        vectors = embed_texts(chunks)
+    except Exception as exc:
+        return {
+            "ok": False,
+            "error": f"tei_failed: {exc}",
+            "generated_id": generated_id,
+            "chunks_created": 0,
+        }
+
+    if len(vectors) != len(chunks):
+        return {
+            "ok": False,
+            "error": "tei_count_mismatch",
+            "generated_id": generated_id,
+            "chunks_created": 0,
+        }
+
+    LessonChunk.objects.filter(generated=generated).update(is_active=False)
+
+    new_chunks = [
+        LessonChunk(
+            content=chunk,
+            embedding=vector,
+            generated=generated,
+            is_active=True,
+        )
+        for chunk, vector in zip(chunks, vectors, strict=True)
+    ]
+
+    LessonChunk.objects.bulk_create(new_chunks)
+
+    return {
+        "ok": True,
+        "generated_id": generated_id,
+        "chunks_created": len(new_chunks),
+    }
+
+

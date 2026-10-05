@@ -63,7 +63,8 @@ class TeacherRemark(models.Model):
 class LessonChunk(models.Model):
     content = models.TextField(blank=True, null=True)
     embedding = VectorField(dimensions=384)  # BAAI/bge-small-en-v1.5
-    reference = models.ForeignKey(ReferenceLesson, on_delete=models.CASCADE, related_name="chunks")
+    reference = models.ForeignKey(ReferenceLesson, on_delete=models.CASCADE, related_name="chunks", null=True, default=None)
+    generated = models.ForeignKey(GeneratedLesson, on_delete=models.CASCADE, related_name="chunks", null=True, default=None)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

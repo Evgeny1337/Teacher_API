@@ -15,7 +15,7 @@ from api.docx_export import render_lesson_docx
 from api.models import GeneratedLesson, Attachment, LessonIteration, TeacherRemark
 from api.response_schemas import UnprocessableEntitySchema, GeneratedLessonResponse, RemarksResponse
 from api.schemas import LessonGenerateRequest, RemarkCreate, ApproveLessonForm, LessonContent
-from api.tasks import generate_lesson_draft
+from api.tasks import generate_lesson_draft, create_embedded_generated
 
 lesson_router = Router(auth=AuthBearer())
 
@@ -171,7 +171,18 @@ def approve_lesson(
         lesson.final = content.model_dump()
 
     lesson.status = "approved"
-    lesson.save()
+    task_id = str(uuid.uuid4())
+    lesson.task_id = task_id
+    lesson.save(update_fields=["status", "final", "task_id"])
+
+    lesson_id = lesson.id
+    transaction.on_commit(
+        lambda: create_embedded_generated.apply_async(
+            args=[lesson_id],
+            task_id=task_id,
+        )
+    )
+
     return Status(HTTPStatus.OK, lesson)
 
 
