@@ -15,7 +15,7 @@ from api.docx_export import render_lesson_docx
 from api.models import GeneratedLesson, Attachment, LessonIteration, TeacherRemark
 from api.response_schemas import UnprocessableEntitySchema, GeneratedLessonResponse, RemarksResponse
 from api.schemas import LessonGenerateRequest, RemarkCreate, ApproveLessonForm, LessonContent
-from api.tasks import generate_lesson_draft, create_embedded_generated
+from api.tasks import generate_lesson_draft, create_embedded_generated, regenerate_lesson_draft
 
 lesson_router = Router(auth=AuthBearer())
 
@@ -213,4 +213,21 @@ def remark_lesson(request: HttpRequest, id_lesson: PositiveInt, payload: RemarkC
         )
         for text in payload.remarks
     ]
-    return Status(HTTPStatus.CREATED, {"remarks": remarks})
+
+    task_id = str(uuid.uuid4())
+    lesson.task_id = task_id
+    lesson.save(update_fields=["task_id"])
+    lesson_pk = lesson.id
+    transaction.on_commit(
+        lambda: regenerate_lesson_draft.apply_async(
+            args=[lesson_pk],
+            task_id=task_id,
+        )
+    )
+
+    return Status(HTTPStatus.CREATED, {
+        "lesson_id": lesson.id,
+        "iteration_number": lesson_iteration.iteration_number,
+        "task_id": task_id,
+        "remarks": remarks,
+    })

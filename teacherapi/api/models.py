@@ -57,7 +57,7 @@ class Attachment(models.Model):
 
 class TeacherRemark(models.Model):
     remark = models.TextField()
-    lesson_iteration = models.ForeignKey(LessonIteration, on_delete=models.CASCADE)
+    lesson_iteration = models.ForeignKey(LessonIteration, on_delete=models.CASCADE, related_name="remarks")
 
 
 class LessonChunk(models.Model):

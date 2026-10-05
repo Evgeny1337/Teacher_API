@@ -35,6 +35,9 @@ class TeacherRemarkResponse(ModelSchema):
 
 
 class RemarksResponse(Schema):
+    lesson_id: int = Field(description="GeneratedLesson id")
+    iteration_number: int = Field(description="Iteration, к которой привязаны remarks")
+    task_id: str = Field(description="Celery task id для regenerate_lesson_draft")
     remarks: List[TeacherRemarkResponse] = Field(default_factory=list, description="Список исправлений")
 
 
