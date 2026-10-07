@@ -1,9 +1,12 @@
+from typing import List
+
 from celery import shared_task
 
 from api.deepseek import build_lesson_draft
 from api.embeddings import embed_texts, find_style_chunks
 from api.extraction import extract_text, get_chunks
 from api.models import Attachment, GeneratedLesson, LessonChunk, LessonIteration, ReferenceLesson, TeacherRemark
+from api.schemas import LessonContent, LessonSection
 
 
 @shared_task(name="api.tasks.generate_lesson_draft")
@@ -169,12 +172,24 @@ def create_embedded_generated(generated_id:int) -> dict:
         chunks.extend(get_chunks(text))
 
     if not chunks:
-        return {
-            "ok": False,
-            "error": "no_chunks",
-            "generated_id": generated_id,
-            "chunks_created": 0,
-        }
+        if generated.final:
+            final_text: str = ""
+            final: LessonContent = LessonContent.model_validate(generated.final)
+            final_text += final.title
+            lesson_sections: List[LessonSection] = final.lesson_section
+            for lesson_section in lesson_sections:
+                final_text += "\n\n"
+                final_text += "Title: " + lesson_section.title + "\n"
+                final_text += "Section type: " + lesson_section.section_type + "\n"
+                final_text += "Content: " + lesson_section.content + "\n"
+            chunks = get_chunks(final_text)
+        else:
+            return {
+                "ok": False,
+                "error": "no_chunks",
+                "generated_id": generated_id,
+                "chunks_created": 0,
+            }
     try:
         vectors = embed_texts(chunks)
     except Exception as exc:
