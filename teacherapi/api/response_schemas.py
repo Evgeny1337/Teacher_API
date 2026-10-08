@@ -12,7 +12,7 @@ class UnprocessableEntitySchema(Schema):
 
 
 class GeneratedLessonResponse(ModelSchema):
-    draft: LessonContent | None = None
+    draft: dict[str, Any] | LessonContent | None = None
     iteration_number: int | None = None
 
     class Meta:

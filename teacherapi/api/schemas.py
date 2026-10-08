@@ -11,15 +11,26 @@ class AgeBucketType(str, Enum):
     ADULTS = "adults"
 
 
-class LessonSection(Schema):
-    title: str = Field(description="Заголовок секции")
-    content: str = Field(description="Содержимое секции")
-    section_type: str = Field(description="Свободные данные")
+class LessonStage(Schema):
+    stage: str = Field(description="Stage / aim label")
+    procedure: str = Field(description="Procedure text")
+    time: str = Field(default="", description="Minutes, e.g. 5")
+    interaction: str = Field(default="", description="IP: PW / WC / GW / Ind")
+    role: str | None = Field(
+        default=None,
+        description="opening|warmup|hw_check|lead_in|presentation|practice|skill|production|extra",
+    )
 
 
 class LessonContent(Schema):
-    title: str = Field(description="Заголовок данных урока")
-    lesson_section: List[LessonSection] = Field(description="Секции урока")
+    title: str = Field(description="Lesson title")
+    aim: str = Field(default="", description="Main aim")
+    sub_aim: str = Field(default="", description="Sub aim")
+    homework: str = Field(default="", description="Homework")
+    date: str | None = Field(default=None, description="Lesson date")
+    level: str | None = Field(default=None, description="Level label")
+    teacher: str | None = Field(default=None, description="Teacher name")
+    stages: List[LessonStage] = Field(default_factory=list, description="Lesson stages table rows")
 
 
 class LessonGenerateRequest(Schema):
@@ -45,6 +56,7 @@ class ReferenceLessonCreateForm(Schema):
     level: str = Field(default="B1", description="Уровень английского")
     age_bucket: AgeBucketType | None = Field(default=None, description="Возраст учащихся")
     teacher_context: str | None = Field(default=None, description="Пометки учителя")
+
 
 class RemarkCreate(Schema):
     remarks: list[str] = Field(description="Правки")

@@ -10,20 +10,34 @@ from openai.types.chat import ChatCompletionMessageParam
 from api.schemas import LessonContent
 
 SYSTEM_PROMPT = """
-You are an English teaching methodologist.
+You are an English teaching methodologist writing lesson plans like a CELTA-style procedure table.
 Return ONLY valid JSON (no markdown fences) with this shape:
 {
   "title": "string",
-  "lesson_section": [
-    {"section_type": "string", "title": "string", "content": "markdown string"}
+  "aim": "string",
+  "sub_aim": "string",
+  "homework": "string",
+  "date": "string or null",
+  "level": "string or null",
+  "teacher": "string or null",
+  "stages": [
+    {
+      "stage": "string",
+      "procedure": "string",
+      "time": "string",
+      "interaction": "string",
+      "role": "opening|warmup|hw_check|lead_in|presentation|practice|skill|production|extra|null"
+    }
   ]
 }
-Use Topic, Level, Duration, Teacher context, Extra instructions, Textbook hint, and Materials as the content source (what the lesson is about).
+Use Topic, Level, Duration, Teacher context, Extra instructions, Textbook hint, and Materials as the content source.
 If Style examples are provided, imitate their lesson structure, staging, interaction patterns, and instruction tone.
 Do not copy the topic or factual content from Style examples when they differ from the current request.
+Write stages as a full lesson procedure (Greetings/Warm up/HW check/Lead-in/Presentation/Practice/Production as relevant).
+procedure may contain short newlines; keep time as minutes (e.g. "5") and interaction as PW/WC/GW/Ind/T-S.
 If Previous draft and Teacher remarks are provided, revise the Previous draft according to the remarks.
 Keep unchanged parts that remarks do not ask to change; do not regenerate the lesson from scratch unless remarks require it.
-Match level and duration.
+Match level and duration. Sum of stage times should be close to Duration minutes.
 """.strip()
 
 

@@ -1,5 +1,3 @@
-from collections import Counter
-
 import httpx
 from django.conf import settings
 from pgvector.django import CosineDistance
@@ -9,6 +7,7 @@ from api.models import LessonChunk
 TEI_MAX_BATCH = 32
 MIN_CHUNK_CHARS = 80
 CANDIDATE_LIMIT = 8
+
 
 def embed_texts(texts: list[str]) -> list[list[float]]:
     if not texts:
@@ -48,7 +47,7 @@ def find_style_chunks(query: str, *, k: int = 20) -> list[str]:
         LessonChunk.objects.filter(is_active=True)
         .order_by(CosineDistance("embedding", vectors[0]))[:k]
     )
-    filtered = [c for c in chunks if len(c.content) > MIN_CHUNK_CHARS]
+    filtered = [c for c in chunks if len(c.content or "") > MIN_CHUNK_CHARS]
     filtered_chunks = []
     chunks_content = set()
     for chunk in filtered:
@@ -56,4 +55,4 @@ def find_style_chunks(query: str, *, k: int = 20) -> list[str]:
         if chunk_content not in chunks_content:
             chunks_content.add(chunk_content)
             filtered_chunks.append(chunk)
-    return [c.content for c in filtered_chunks[:CANDIDATE_LIMIT]]
+    return [c.content for c in filtered_chunks[:CANDIDATE_LIMIT] if c.content]
