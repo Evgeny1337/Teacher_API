@@ -99,6 +99,7 @@ def _prepare_from_blocks(draft: dict[str, Any]) -> dict[str, Any]:
 
     items: list[dict[str, Any]] = []
     rows: list[dict[str, Any]] = []
+    homework_line: RichText | None = None
 
     blocks = draft.get("blocks") or draft.get("items") or []
     for block in blocks:
@@ -128,10 +129,7 @@ def _prepare_from_blocks(draft: dict[str, Any]) -> dict[str, Any]:
         elif name == "homework":
             hw = str(content.get("text") or "")
             if hw.strip():
-                items.append({
-                    "name": "homework",
-                    "line": _rich_labeled("H/W", hw, style=style),
-                })
+                homework_line = _rich_labeled("H/W", hw, style=style)
         elif name == "paragraph":
             items.append({
                 "name": "paragraph",
@@ -141,7 +139,13 @@ def _prepare_from_blocks(draft: dict[str, Any]) -> dict[str, Any]:
             row_styles = style.get("row_styles") if isinstance(style.get("row_styles"), dict) else {}
             _append_stage_rows(rows, content.get("rows") or [], row_styles)
 
-    return {"title": title, "items": items, "rows": rows}
+    return {
+        "title": title,
+        "items": items,
+        "rows": rows,
+        "homework_line": homework_line or RichText(),
+        "show_homework": homework_line is not None,
+    }
 
 
 def _prepare_from_stages(draft: dict[str, Any]) -> dict[str, Any]:
@@ -230,7 +234,13 @@ def _prepare_from_legacy_sections(draft: dict[str, Any]) -> dict[str, Any]:
             "time_ip": _rich(time_ip or "—", preset="time"),
         })
 
-    return {"title": title, "items": items, "rows": rows}
+    return {
+        "title": title,
+        "items": items,
+        "rows": rows,
+        "homework_line": RichText(),
+        "show_homework": False,
+    }
 
 
 def _prepare_draft(draft: dict[str, Any]) -> dict[str, Any]:
