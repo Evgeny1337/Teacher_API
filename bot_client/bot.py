@@ -19,7 +19,7 @@ from bot_client.keyboards import (
     remove_keyboard,
 )
 from bot_client.middleware import AlbumMiddleware
-from bot_client.statemachine import CreateLesson
+from bot_client.statemachine import CreateLesson, RemarkLesson, ApproveFile
 
 load_dotenv(override=True)
 
@@ -42,6 +42,15 @@ def _guess_content_type(filename: str) -> str:
         ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         ".doc": "application/msword",
     }.get(suffix, "application/octet-stream")
+
+
+async def _show_ready_lesson(message: Message, state: FSMContext, lesson_id: int, title: str):
+    await state.set_state(CreateLesson.ready)
+    await state.update_data(lesson_id=lesson_id)
+    await message.answer(
+        f"Готово.\nУрок #{lesson_id}\n{title}",
+        reply_markup=download_keyboard(),
+    )
 
 
 @dp.message(CommandStart())
@@ -141,24 +150,20 @@ async def submit_lesson(message: Message, state: FSMContext):
         lesson_id = created["id"]
         task_id = created["task_id"]
         await state.update_data(lesson_id=lesson_id, task_id=task_id)
-        await state.set_state(CreateLesson.ready)
 
         status = await api.wait_task(task_id)
-        if status.get("status") != "SUCCESS" or not (status.get("result") or {}).get("ok", True):
+        result = status.get("result") or {}
+        if status.get("status") != "SUCCESS" or result.get("ok") is False:
             await state.clear()
             await message.answer(
-                f"Генерация не удалась: {status.get('status')} {status.get('result')}",
+                f"Генерация не удалась: {status.get('status')} {result}",
                 reply_markup=start_keyboard(),
             )
             return
 
         lesson = await api.get_lesson(lesson_id)
         title = (lesson.get("draft") or {}).get("title") or topic
-        await message.answer(
-            f"Готово.\nУрок #{lesson_id}\n{title}",
-            reply_markup=download_keyboard(),
-        )
-        await message.answer("Можно скачать DOCX или начать новый урок.", reply_markup=start_keyboard())
+        await _show_ready_lesson(message, state, lesson_id, title)
     except HTTPError as exc:
         logger.exception("API error")
         await state.clear()
@@ -167,6 +172,131 @@ async def submit_lesson(message: Message, state: FSMContext):
         logger.exception("Submit failed")
         await state.clear()
         await message.answer(f"Ошибка: {exc}", reply_markup=start_keyboard())
+
+
+@dp.message(RemarkLesson.remark, F.text)
+async def remark_lesson(message: Message, state: FSMContext):
+    text = message.text.strip()
+    data = await state.get_data()
+    lesson_id = data.get("lesson_id")
+    if not lesson_id:
+        await state.clear()
+        await message.answer("Нет активного урока.", reply_markup=start_keyboard())
+        return
+
+    await message.answer("Применяю замечания и жду реген…", reply_markup=remove_keyboard())
+    try:
+        remark_response = await api.remark_lesson(
+            lesson_id=int(lesson_id),
+            remarks=[text],
+        )
+        task_id = remark_response["task_id"]
+        await state.update_data(task_id=task_id)
+
+        status = await api.wait_task(task_id)
+        result = status.get("result") or {}
+        if status.get("status") != "SUCCESS" or result.get("ok") is False:
+            await state.set_state(CreateLesson.ready)
+            await message.answer(
+                f"Реген не удался: {status.get('status')} {result}",
+                reply_markup=download_keyboard(),
+            )
+            return
+
+        lesson = await api.get_lesson(int(lesson_id))
+        title = (lesson.get("draft") or {}).get("title") or f"Урок #{lesson_id}"
+        await _show_ready_lesson(message, state, int(lesson_id), title)
+    except HTTPError as exc:
+        logger.exception("Remark API error")
+        await state.set_state(CreateLesson.ready)
+        await message.answer(f"Ошибка API: {exc}", reply_markup=download_keyboard())
+    except Exception as exc:
+        logger.exception("Remark failed")
+        await state.set_state(CreateLesson.ready)
+        await message.answer(f"Ошибка: {exc}", reply_markup=download_keyboard())
+
+
+@dp.message(ApproveFile.file, F.document)
+async def approve_lesson_with_file(message: Message, state: FSMContext):
+    data = await state.get_data()
+    lesson_id = data.get("lesson_id")
+    doc = message.document
+    if not lesson_id or not doc:
+        await state.set_state(CreateLesson.ready)
+        await message.answer("Нет урока или файла.", reply_markup=download_keyboard())
+        return
+
+    try:
+        file = await message.bot.get_file(doc.file_id)
+        buffer = await message.bot.download_file(file.file_path)
+        content = buffer.read() if hasattr(buffer, "read") else bytes(buffer)
+        filename = doc.file_name or f"final_{lesson_id}.docx"
+
+        await api.approve_lesson_with_file(
+            int(lesson_id),
+            filename=filename,
+            content=content,
+            content_type=doc.mime_type or _guess_content_type(filename),
+        )
+        await state.clear()
+        await message.answer(
+            f"Урок #{lesson_id} утверждён (файл) и добавлен в Style RAG.",
+            reply_markup=start_keyboard(),
+        )
+    except HTTPError as exc:
+        logger.exception("Approve file API error")
+        await state.set_state(CreateLesson.ready)
+        await message.answer(f"Ошибка API: {exc}", reply_markup=download_keyboard())
+    except Exception as exc:
+        logger.exception("Approve file failed")
+        await state.set_state(CreateLesson.ready)
+        await message.answer(f"Ошибка: {exc}", reply_markup=download_keyboard())
+
+
+@dp.callback_query(CreateLesson.ready, F.data.startswith("ready_"))
+async def ready_actions(query: CallbackQuery, state: FSMContext):
+    await query.answer()
+    postfix = (query.data or "").removeprefix("ready_")
+    data = await state.get_data()
+    lesson_id = data.get("lesson_id")
+    if not lesson_id:
+        await query.message.answer("Нет активного урока.", reply_markup=start_keyboard())
+        return
+
+    if postfix == "remark":
+        await state.set_state(RemarkLesson.remark)
+        await state.update_data(lesson_id=lesson_id)
+        await query.message.answer(
+            "Напиши замечания одним сообщением.",
+            reply_markup=remove_keyboard(),
+        )
+        return
+
+    if postfix == "approve":
+        try:
+            lesson = await api.get_lesson(int(lesson_id))
+            draft = lesson.get("draft")
+            if not draft:
+                await query.message.answer("У урока нет draft.", reply_markup=download_keyboard())
+                return
+            await api.approve_lesson(int(lesson_id), draft=draft)
+            await state.clear()
+            await query.message.answer(
+                f"Урок #{lesson_id} утверждён и добавлен в Style RAG.",
+                reply_markup=start_keyboard(),
+            )
+        except HTTPError as exc:
+            logger.exception("Approve API error")
+            await query.message.answer(f"Ошибка API: {exc}", reply_markup=download_keyboard())
+        return
+
+    if postfix == "file":
+        await state.set_state(ApproveFile.file)
+        await state.update_data(lesson_id=lesson_id)
+        await query.message.answer(
+            "Пришли итоговый файл урока (docx/pdf).",
+            reply_markup=remove_keyboard(),
+        )
 
 
 @dp.callback_query(F.data == "download_lesson")

@@ -6,3 +6,12 @@ class CreateLesson(StatesGroup):
     level = State()
     materials = State()
     ready = State()
+
+
+class RemarkLesson(StatesGroup):
+    remark = State()
+
+
+class ApproveFile(StatesGroup):
+    file = State()
+
