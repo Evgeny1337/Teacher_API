@@ -14,4 +14,3 @@ class RemarkLesson(StatesGroup):
 
 class ApproveFile(StatesGroup):
     file = State()
-
