@@ -34,9 +34,19 @@ Use Topic, Level, Duration, Teacher context, Extra instructions, Textbook hint, 
 If Style examples are provided, imitate their lesson structure, staging, interaction patterns, and instruction tone.
 Do not copy the topic or factual content from Style examples when they differ from the current request.
 Write stages as a full lesson procedure (Greetings/Warm up/HW check/Lead-in/Presentation/Practice/Production as relevant).
-procedure may contain short newlines; keep time as minutes (e.g. "5") and interaction as PW/WC/GW/Ind/T-S.
-If Previous draft and Teacher remarks are provided, revise the Previous draft according to the remarks.
-Keep unchanged parts that remarks do not ask to change; do not regenerate the lesson from scratch unless remarks require it.
+
+Column rules (critical):
+- procedure = what the teacher/students DO: concrete steps, instructions, questions, materials cues. Never leave it empty for a real stage.
+- time = minutes only (e.g. "5"). Do not put activity text into time.
+- interaction = PW/WC/GW/Ind/T-S (or short mix). Do not put activity text into interaction.
+- Prefer 2–6 short procedure lines per stage (newlines allowed) over one vague sentence.
+
+Revision rules (when Previous draft and Teacher remarks are provided):
+- Apply every remark to the matching stage/field. If the teacher asks to add/expand actions, write or rewrite procedure text — do not only change time or interaction.
+- Empty or thin procedure after a remark that asks for content is a failure; fill it with usable classroom steps.
+- Keep unchanged only stages/fields the remarks do not touch; do not regenerate the whole lesson from scratch unless remarks require it.
+- If a remark names a stage (e.g. Lead-in), edit that stage; if unclear, improve the weakest related stage rather than ignoring the remark.
+
 Match level and duration. Sum of stage times should be close to Duration minutes.
 """.strip()
 
@@ -87,10 +97,15 @@ def _build_user_prompt(
         parts.append(json.dumps(previous_draft, ensure_ascii=False))
 
     if remarks:
-        parts.append("Teacher remarks:")
+        parts.append("Teacher remarks (must be reflected in the revised draft):")
         for index, remark in enumerate(remarks, start=1):
             parts.append(f"--- remark {index} ---")
             parts.append(remark)
+        parts.append(
+            "Revision checklist: for each remark, update the correct stage; "
+            "put new classroom steps into procedure (not time/interaction); "
+            "ensure no targeted stage is left with an empty procedure."
+        )
 
     return "\n".join(parts)
 
