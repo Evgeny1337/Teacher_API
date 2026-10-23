@@ -10,6 +10,8 @@ from openai.types.chat import ChatCompletionMessageParam
 from api.prompts import LESSON_SYSTEM_PROMPT
 from api.schemas import LessonContent
 
+MATERIALS_BUDGET_CHARS = 24000
+
 
 @lru_cache(maxsize=1)
 def get_client() -> OpenAI:
@@ -17,6 +19,24 @@ def get_client() -> OpenAI:
         api_key=settings.DEEPSEEK_API_KEY,
         base_url=settings.DEEPSEEK_BASE_URL,
     )
+
+
+def trim_materials(
+    materials: list[dict[str, Any]],
+    *,
+    total_budget: int = MATERIALS_BUDGET_CHARS,
+) -> list[dict[str, Any]]:
+    if not materials:
+        return []
+    per_file = max(total_budget // len(materials), 500)
+    trimmed: list[dict[str, Any]] = []
+    for material in materials:
+        item = dict(material)
+        text = str(item.get("text") or "")
+        if len(text) > per_file:
+            item["text"] = text[:per_file]
+        trimmed.append(item)
+    return trimmed
 
 
 def _build_user_prompt(
@@ -27,6 +47,7 @@ def _build_user_prompt(
     teacher_context: str | None,
     extra_instructions: str | None,
     textbook_hint: str | None,
+    material_pages: str | None,
     materials: list[dict[str, Any]],
     style_chunks: list[str] | None = None,
     remarks: list[str] | None = None,
@@ -39,12 +60,12 @@ def _build_user_prompt(
         f"Teacher context: {teacher_context or '-'}",
         f"Extra instructions: {extra_instructions or '-'}",
         f"Textbook hint: {textbook_hint or '-'}",
+        f"Material pages: {material_pages or '-'}",
         "Materials:",
     ]
-    for material in materials:
-        text = (material.get("text") or "")[:12000]
+    for material in trim_materials(materials):
         parts.append(f"--- {material.get('filename', 'file')} ---")
-        parts.append(text)
+        parts.append(str(material.get("text") or ""))
 
     if style_chunks:
         parts.append("Style examples from the teacher's reference lessons:")
@@ -87,6 +108,7 @@ def build_lesson_draft(
     extra_instructions: str | None,
     textbook_hint: str | None,
     materials: list[dict[str, Any]],
+    material_pages: str | None = None,
     style_chunks: list[str] | None = None,
     remarks: list[str] | None = None,
     previous_draft: dict[str, Any] | None = None,
@@ -104,6 +126,7 @@ def build_lesson_draft(
                     teacher_context=teacher_context,
                     extra_instructions=extra_instructions,
                     textbook_hint=textbook_hint,
+                    material_pages=material_pages,
                     materials=materials,
                     style_chunks=style_chunks,
                     remarks=remarks,

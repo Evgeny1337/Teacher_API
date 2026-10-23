@@ -6,13 +6,36 @@ from docx.oxml.ns import qn
 from docx.table import Table
 from docx.text.paragraph import Paragraph
 
-PathLike = str | Path
+type PathLike = str | Path
 
 
-def get_pdf(path: Path) -> str:
+def get_pdf_pages(path: Path) -> list[tuple[int, str]]:
     reader = pypdf.PdfReader(path)
-    pages = (page.extract_text() or "" for page in reader.pages)
-    return "\n".join(pages)
+    pages: list[tuple[int, str]] = []
+    for index, page in enumerate(reader.pages, start=1):
+        text = (page.extract_text() or "").strip()
+        pages.append((index, text))
+    return pages
+
+
+def get_pdf(path: Path, *, pages: list[int] | None = None) -> str:
+    all_pages = get_pdf_pages(path)
+    if pages:
+        wanted = set(pages)
+        selected = [(num, text) for num, text in all_pages if num in wanted]
+        if not selected:
+            raise ValueError(
+                f"no PDF pages match filter {pages} "
+                f"(document has {len(all_pages)} page(s))"
+            )
+    else:
+        selected = all_pages
+
+    blocks = [
+        f"[Page {num}]\n{text}" if text else f"[Page {num}]"
+        for num, text in selected
+    ]
+    return "\n\n".join(blocks)
 
 
 def _table_row_blocks(table: Table) -> list[str]:
@@ -43,23 +66,19 @@ def get_docx(path: Path) -> str:
     return "\n\n".join(blocks)
 
 
-ACTIONS = {
-    "pdf": get_pdf,
-    "docx": get_docx,
-}
-
-
-def extract_text(file_path: PathLike) -> str:
+def extract_text(file_path: PathLike, *, pages: list[int] | None = None) -> str:
     path = Path(file_path)
     if not path.exists():
         raise FileNotFoundError(f"file not found: {path}")
 
     ext = path.suffix.lower().lstrip(".")
-    action = ACTIONS.get(ext)
-    if action is None:
-        raise ValueError(f"unsupported format: {ext!r}")
-
-    return action(path)
+    match ext:
+        case "pdf":
+            return get_pdf(path, pages=pages or None)
+        case "docx":
+            return get_docx(path)
+        case _:
+            raise ValueError(f"unsupported format: {ext!r}")
 
 
 MIN_CHUNK = 40
@@ -76,7 +95,12 @@ def _split_long_paragraph(paragraph: str) -> list[str]:
         end = min(start + MAX_CHUNK, length)
         if end < length:
             window = paragraph[start:end]
-            cut = max(window.rfind(". "), window.rfind(".\n"), window.rfind("? "), window.rfind("! "))
+            cut = max(
+                window.rfind(". "),
+                window.rfind(".\n"),
+                window.rfind("? "),
+                window.rfind("! "),
+            )
             if cut >= MIN_CHUNK // 2:
                 end = start + cut + 1
         piece = paragraph[start:end].strip()

@@ -22,6 +22,7 @@ class GeneratedLesson(models.Model):
     teacher_context = models.TextField(blank=True, null=True)
     extra_instructions = models.TextField(blank=True, null=True)
     textbook_hint = models.TextField(blank=True, null=True)
+    material_pages = models.CharField(max_length=128, blank=True, null=True)
     status = models.CharField(max_length=10, choices=StatusLessonChoices, default=StatusLessonChoices.DRAFT)
     final = models.JSONField(blank=True, null=True)
     task_id = models.CharField(max_length=64, blank=True, null=True, db_index=True)

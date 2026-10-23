@@ -12,7 +12,7 @@ SECRET_KEY = 'django-insecure-=k*&x_@jv4^k!dcd-+hj+ctz2z+r7o7=%73s4u4r2%86nz*0q8
 BOT_SHARED_SECRET = os.environ.get("BOT_SHARED_SECRET", "default-unsafe-secret")
 DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
 DEEPSEEK_BASE_URL = os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
-DEEPSEEK_MODEL = os.environ.get("DEEPSEEK_MODEL", "deepseek-chat")\
+DEEPSEEK_MODEL = os.environ.get("DEEPSEEK_MODEL", "deepseek-chat")
 
 TEI_URL = os.environ.get("TEI_URL", "http://localhost:8084")
 
