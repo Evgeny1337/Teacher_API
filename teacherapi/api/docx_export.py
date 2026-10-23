@@ -8,14 +8,16 @@ from docxtpl import DocxTemplate, RichText
 
 TEMPLATE_PATH = Path(settings.BASE_DIR) / "templates" / "lesson.docx"
 
+FONT = "Times New Roman"
+
 STYLE_PRESETS: dict[str, dict[str, Any]] = {
-    "title": {"bold": True, "size": 32, "color": "1F4E79", "font": "Calibri"},
-    "meta": {"size": 20, "color": "444444", "font": "Calibri"},
-    "label": {"bold": True, "size": 22, "color": "1F4E79", "font": "Calibri"},
-    "body": {"size": 22, "font": "Calibri"},
-    "stage": {"bold": True, "size": 20, "font": "Calibri"},
-    "procedure": {"size": 20, "font": "Calibri"},
-    "time": {"size": 18, "color": "666666", "font": "Calibri"},
+    "title": {"bold": True, "size": 32, "color": "1F4E79", "font": FONT},
+    "meta": {"size": 20, "color": "444444", "font": FONT},
+    "label": {"bold": True, "size": 22, "color": "1F4E79", "font": FONT},
+    "body": {"size": 22, "font": FONT},
+    "stage": {"bold": True, "size": 20, "font": FONT},
+    "procedure": {"size": 20, "font": FONT},
+    "time": {"size": 18, "color": "666666", "font": FONT},
 }
 
 
@@ -143,6 +145,7 @@ def _prepare_from_blocks(draft: dict[str, Any]) -> dict[str, Any]:
         "title": title,
         "items": items,
         "rows": rows,
+        "footer_items": [],
         "homework_line": homework_line or RichText(),
         "show_homework": homework_line is not None,
     }
@@ -166,16 +169,35 @@ def _prepare_from_stages(draft: dict[str, Any]) -> dict[str, Any]:
             "sub_aim": draft.get("sub_aim") or "",
         },
     })
+    blocks.append({
+        "type": "stages_table",
+        "content": {"rows": draft.get("stages") or []},
+    })
     if draft.get("homework"):
         blocks.append({
             "type": "homework",
             "content": {"text": draft.get("homework") or ""},
         })
-    blocks.append({
-        "type": "stages_table",
-        "content": {"rows": draft.get("stages") or []},
-    })
-    return _prepare_from_blocks({"title": draft.get("title"), "blocks": blocks})
+
+    prepared = _prepare_from_blocks({"title": draft.get("title"), "blocks": blocks})
+    footer_items: list[dict[str, Any]] = []
+
+    handout = str(draft.get("handout") or "").strip()
+    if handout:
+        footer_items.append({
+            "name": "paragraph",
+            "line": _rich_labeled("Handout", handout),
+        })
+
+    links = [str(link).strip() for link in (draft.get("links") or []) if str(link).strip()]
+    if links:
+        footer_items.append({
+            "name": "paragraph",
+            "line": _rich_labeled("Links", "\n".join(links)),
+        })
+
+    prepared["footer_items"] = footer_items
+    return prepared
 
 
 def _extract_labeled(text: str, label: str) -> str:
@@ -238,6 +260,7 @@ def _prepare_from_legacy_sections(draft: dict[str, Any]) -> dict[str, Any]:
         "title": title,
         "items": items,
         "rows": rows,
+        "footer_items": [],
         "homework_line": RichText(),
         "show_homework": False,
     }

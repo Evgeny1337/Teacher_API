@@ -17,3 +17,4 @@ async def command_start(message: Message, state: FSMContext):
 @router.message(F.text == "Загрузить эталоны")
 async def references_stub(message: Message):
     await message.answer("Пока не реализовано. Скоро добавим загрузку эталонов.")
+

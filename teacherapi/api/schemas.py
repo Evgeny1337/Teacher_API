@@ -27,6 +27,8 @@ class LessonContent(Schema):
     aim: str = Field(default="", description="Main aim")
     sub_aim: str = Field(default="", description="Sub aim")
     homework: str = Field(default="", description="Homework")
+    handout: str = Field(default="", description="Student handout / worksheet text")
+    links: List[str] = Field(default_factory=list, description="Useful URLs e.g. Wordwall")
     date: str | None = Field(default=None, description="Lesson date")
     level: str | None = Field(default=None, description="Level label")
     teacher: str | None = Field(default=None, description="Teacher name")
